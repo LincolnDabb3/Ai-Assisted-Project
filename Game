@@ -7,9 +7,10 @@ from time import time
 pygame.init()  
   
 # Screen settings  
-WINDOW_SIZE = 500  
-ROWS, COLS = 21, 21  
-CELL_SIZE = WINDOW_SIZE // COLS  
+WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600  
+ROWS, COLS = 30, 40  # Adjusted for a better fit  
+CELL_SIZE = WINDOW_WIDTH // COLS  
+UI_HEIGHT = 100  
   
 # Colors  
 WHITE = (255, 255, 255)  
@@ -18,9 +19,9 @@ GREEN = (0, 255, 0)
 RED = (255, 0, 0)  
 BLUE = (0, 0, 255)  
 YELLOW = (255, 255, 0)  
-GOLD = (255, 215, 0)  # Color for keys  
-GRAY = (169, 169, 169)  # Cover color for the goal  
-PURPLE = (160, 32, 240)  # Color for abilities  
+GOLD = (255, 215, 0)  
+GRAY = (169, 169, 169)  
+PURPLE = (160, 32, 240)  
   
 # Abilities  
 ABILITY_TYPES = ["Power", "Speed", "Shield", "Extra Slot"]  
@@ -42,7 +43,7 @@ def generate_maze(width, height):
     return maze  
   
 # Set up the display  
-screen = pygame.display.set_mode((WINDOW_SIZE, WINDOW_SIZE))  
+screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))  
 pygame.display.set_caption('Maze Game')  
   
 class Player:  
@@ -55,16 +56,15 @@ class Player:
         self.abilities = []  
         self.active_ability = None  
         self.ability_timer = 0  
-        self.max_abilities = 1  # Initial ability slot  
-        self.score = 0  # Initialize the score  
+        self.max_abilities = 1  
+        self.score = 0  
   
     def draw(self):  
         offset = (CELL_SIZE - self.size) / 2  
-        pygame.draw.rect(screen, GREEN, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + offset, self.size, self.size))  
-        pygame.draw.rect(screen, RED, (10, WINDOW_SIZE - 30, self.health * 2, 20))  
-        self.draw_keys_abilities_score()  
+        pygame.draw.rect(screen, GREEN, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + UI_HEIGHT + offset, self.size, self.size))  
+        pygame.draw.rect(screen, RED, (10, WINDOW_HEIGHT - 30, self.health * 2, 20))  
   
-    def draw_keys_abilities_score(self):  
+    def draw_ui(self):  
         font = pygame.font.SysFont(None, 25)  
         keys_text = font.render(f"Keys: {self.keys_collected}/3", True, GOLD)  
         screen.blit(keys_text, (10, 10))  
@@ -92,14 +92,14 @@ class Player:
                 enemy.health -= damage  
                 if enemy.health <= 0:  
                     enemies.remove(enemy)  
-                    self.score += 50  # Increase score for defeating an enemy  
+                    self.score += 50  
   
     def collect_key(self, keys):  
         for key in keys[:]:  
             if (self.x, self.y) == key:  
                 keys.remove(key)  
                 self.keys_collected += 1  
-                self.score += 100  # Increase score for collecting a key  
+                self.score += 100  
   
     def collect_ability(self, abilities):  
         for ability in abilities[:]:  
@@ -114,7 +114,7 @@ class Player:
   
     def activate_ability(self, ability):  
         self.active_ability = ability  
-        self.ability_timer = time() + 10  # Ability lasts for 10 seconds  
+        self.ability_timer = time() + 10  
   
     def update_ability(self):  
         if self.active_ability and time() > self.ability_timer:  
@@ -132,11 +132,11 @@ class Enemy:
   
     def draw(self):  
         offset = (CELL_SIZE - self.size) / 2  
-        pygame.draw.rect(screen, self.color, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + offset, self.size, self.size))  
+        pygame.draw.rect(screen, self.color, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + UI_HEIGHT + offset, self.size, self.size))  
   
     def move_towards_player(self, player):  
         dx, dy = 0, 0  
-        if abs(player.x - self.x) + abs(player.y - self.y) > 1:  # Stop one cell away  
+        if abs(player.x - self.x) + abs(player.y - self.y) > 1:  
             if player.x > self.x:  
                 dx = 1  
             elif player.x < self.x:  
@@ -164,21 +164,21 @@ def draw_maze():
     for row in range(ROWS):  
         for col in range(COLS):  
             color = WHITE if maze[row][col] == 1 else BLACK  
-            pygame.draw.rect(screen, color, (col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE))  
+            pygame.draw.rect(screen, color, (col * CELL_SIZE, row * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
   
 def draw_goal(player):  
     if player.keys_collected < 3:  
-        pygame.draw.rect(screen, GRAY, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE, CELL_SIZE, CELL_SIZE))  
+        pygame.draw.rect(screen, GRAY, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
     else:  
-        pygame.draw.rect(screen, RED, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE, CELL_SIZE, CELL_SIZE))  
+        pygame.draw.rect(screen, RED, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
   
 def draw_keys(keys):  
     for key in keys:  
-        pygame.draw.ellipse(screen, GOLD, (key[1] * CELL_SIZE + CELL_SIZE * 0.25, key[0] * CELL_SIZE + CELL_SIZE * 0.25, CELL_SIZE * 0.5, CELL_SIZE * 0.5))  
+        pygame.draw.ellipse(screen, GOLD, (key[1] * CELL_SIZE + CELL_SIZE * 0.25, key[0] * CELL_SIZE + CELL_SIZE * 0.25 + UI_HEIGHT, CELL_SIZE * 0.5, CELL_SIZE * 0.5))  
   
 def draw_abilities(abilities):  
     for ability in abilities:  
-        pygame.draw.rect(screen, PURPLE, (ability[1] * CELL_SIZE + CELL_SIZE * 0.25, ability[0] * CELL_SIZE + CELL_SIZE * 0.25, CELL_SIZE * 0.5, CELL_SIZE * 0.5))  
+        pygame.draw.rect(screen, PURPLE, (ability[1] * CELL_SIZE + CELL_SIZE * 0.25, ability[0] * CELL_SIZE + CELL_SIZE * 0.25 + UI_HEIGHT, CELL_SIZE * 0.5, CELL_SIZE * 0.5))  
   
 def check_goal_reached(player, goal):  
     return player.x == goal[0] and player.y == goal[1] and player.keys_collected == 3  
@@ -187,10 +187,10 @@ def end_game_screen(message, score):
     screen.fill(BLACK)  
     font = pygame.font.SysFont(None, 55)  
     text = font.render(message, True, WHITE)  
-    screen.blit(text, (WINDOW_SIZE // 2 - text.get_width() // 2, WINDOW_SIZE // 2 - 50))  
+    screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 50))  
       
     score_text = font.render(f"Final Score: {score}", True, WHITE)  
-    screen.blit(score_text, (WINDOW_SIZE // 2 - score_text.get_width() // 2, WINDOW_SIZE // 2 + 10))  
+    screen.blit(score_text, (WINDOW_WIDTH // 2 - score_text.get_width() // 2, WINDOW_HEIGHT // 2 + 10))  
       
     pygame.display.flip()  
     pygame.time.wait(2000)  
@@ -199,20 +199,20 @@ def start_screen():
     screen.fill(BLACK)  
     font = pygame.font.SysFont(None, 55)  
     title = font.render("Maze Game", True, WHITE)  
-    screen.blit(title, (WINDOW_SIZE // 2 - title.get_width() // 2, WINDOW_SIZE // 2 - 100))  
+    screen.blit(title, (WINDOW_WIDTH // 2 - title.get_width() // 2, WINDOW_HEIGHT // 2 - 100))  
   
     font = pygame.font.SysFont(None, 35)  
     start_text = font.render("Press S to Start", True, WHITE)  
-    screen.blit(start_text, (WINDOW_SIZE // 2 - start_text.get_width() // 2, WINDOW_SIZE // 2))  
+    screen.blit(start_text, (WINDOW_WIDTH // 2 - start_text.get_width() // 2, WINDOW_HEIGHT // 2))  
   
     instructions_text = font.render("Press I for Instructions", True, WHITE)  
-    screen.blit(instructions_text, (WINDOW_SIZE // 2 - instructions_text.get_width() // 2, WINDOW_SIZE // 2 + 40))  
+    screen.blit(instructions_text, (WINDOW_WIDTH // 2 - instructions_text.get_width() // 2, WINDOW_HEIGHT // 2 + 40))  
   
     ability_list_text = font.render("Press A for Abilities", True, WHITE)  
-    screen.blit(ability_list_text, (WINDOW_SIZE // 2 - ability_list_text.get_width() // 2, WINDOW_SIZE // 2 + 80))  
+    screen.blit(ability_list_text, (WINDOW_WIDTH // 2 - ability_list_text.get_width() // 2, WINDOW_HEIGHT // 2 + 80))  
   
     exit_text = font.render("Press Q to Quit", True, WHITE)  
-    screen.blit(exit_text, (WINDOW_SIZE // 2 - exit_text.get_width() // 2, WINDOW_SIZE // 2 + 120))  
+    screen.blit(exit_text, (WINDOW_WIDTH // 2 - exit_text.get_width() // 2, WINDOW_HEIGHT // 2 + 120))  
   
     pygame.display.flip()  
   
@@ -230,7 +230,7 @@ def instructions_screen():
     ]  
     for i, line in enumerate(instructions):  
         text = font.render(line, True, WHITE)  
-        screen.blit(text, (WINDOW_SIZE // 2 - text.get_width() // 2, WINDOW_SIZE // 2 - 100 + i * 40))  
+        screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 100 + i * 40))  
     pygame.display.flip()  
   
 def abilities_screen():  
@@ -246,7 +246,7 @@ def abilities_screen():
     ]  
     for i, line in enumerate(abilities_info):  
         text = font.render(line, True, WHITE)  
-        screen.blit(text, (WINDOW_SIZE // 2 - text.get_width() // 2, WINDOW_SIZE // 2 - 100 + i * 40))  
+        screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 100 + i * 40))  
     pygame.display.flip()  
   
 maze = generate_maze(COLS, ROWS)  
@@ -350,6 +350,7 @@ while True:
         draw_keys(keys)  
         draw_abilities(abilities)  
         player.draw()  
+        player.draw_ui()  
         for enemy in enemies:  
             enemy.draw()  
         pygame.display.flip()  
