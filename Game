@@ -45,6 +45,12 @@ def generate_maze(width, height):
     carve_passages(start_x, start_y)  
     return maze  
   
+def place_goal(maze, width, height):  
+    while True:  
+        x, y = random.randint(1, height - 2), random.randint(1, width - 2)  
+        if maze[x][y] == 0 and (x, y) not in [(0, 0), (0, width - 1), (height - 1, 0), (height - 1, width - 1)]:  
+            return x, y  
+  
 # Set up the display  
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))  
 pygame.display.set_caption('Maze Game')  
@@ -71,12 +77,12 @@ class Player:
         keys_text = font.render(f"Keys: {self.keys_collected}/{keys_required[level]}", True, GOLD)  
         screen.blit(keys_text, (10, 10))  
           
+        score_text = font.render(f"Score: {self.score}", True, WHITE)  
+        screen.blit(score_text, (200, 10))  # Adjusted to be next to keys  
+  
         abilities_text = ", ".join(self.abilities) if self.abilities else "None"  
         ability_text = font.render(f"Abilities: {abilities_text}", True, PURPLE)  
         screen.blit(ability_text, (10, 30))  
-  
-        score_text = font.render(f"Score: {self.score}", True, WHITE)  
-        screen.blit(score_text, (10, 50))  
   
         health_text = font.render("HEALTH", True, WHITE)  
         screen.blit(health_text, (WINDOW_WIDTH - 250, 10))  
@@ -124,8 +130,9 @@ class Player:
   
     def update_ability(self):  
         if self.active_ability and time() > self.ability_timer:  
+            if self.active_ability in self.abilities:  
+                self.abilities.remove(self.active_ability)  # Remove expired ability  
             self.active_ability = None  
-            self.abilities.remove(self.active_ability)  # Remove expired ability  
   
 class Enemy:  
     def __init__(self, x, y, color, attack_rate):  
@@ -218,8 +225,11 @@ def start_screen():
     ability_list_text = font.render("Press A for Abilities", True, WHITE)  
     screen.blit(ability_list_text, (WINDOW_WIDTH // 2 - ability_list_text.get_width() // 2, WINDOW_HEIGHT // 2 + 80))  
   
+    level_menu_text = font.render("Press L for Levels Menu", True, WHITE)  
+    screen.blit(level_menu_text, (WINDOW_WIDTH // 2 - level_menu_text.get_width() // 2, WINDOW_HEIGHT // 2 + 120))  
+  
     exit_text = font.render("Press Q to Quit", True, WHITE)  
-    screen.blit(exit_text, (WINDOW_WIDTH // 2 - exit_text.get_width() // 2, WINDOW_HEIGHT // 2 + 120))  
+    screen.blit(exit_text, (WINDOW_WIDTH // 2 - exit_text.get_width() // 2, WINDOW_HEIGHT // 2 + 160))  
   
     pygame.display.flip()  
   
@@ -256,17 +266,49 @@ def abilities_screen():
         screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 100 + i * 40))  
     pygame.display.flip()  
   
+def levels_menu():  
+    screen.fill(BLACK)  
+    font = pygame.font.SysFont(None, 35)  
+    levels_info = [  
+        "Select Level:",  
+        "1. Level 1",  
+        "2. Level 2",  
+        "3. Level 3",  
+        "4. Level 4",  
+        "5. Level 5",  
+        "Press B to go back."  
+    ]  
+    for i, line in enumerate(levels_info):  
+        text = font.render(line, True, WHITE)  
+        screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 100 + i * 40))  
+    pygame.display.flip()  
+  
+def level_transition_menu():  
+    screen.fill(BLACK)  
+    font = pygame.font.SysFont(None, 55)  
+    transition_text = font.render("Level Complete!", True, WHITE)  
+    screen.blit(transition_text, (WINDOW_WIDTH // 2 - transition_text.get_width() // 2, WINDOW_HEIGHT // 2 - 50))  
+  
+    next_level_text = font.render("Press N for Next Level", True, WHITE)  
+    screen.blit(next_level_text, (WINDOW_WIDTH // 2 - next_level_text.get_width() // 2, WINDOW_HEIGHT // 2 + 10))  
+  
+    home_text = font.render("Press H for Home", True, WHITE)  
+    screen.blit(home_text, (WINDOW_WIDTH // 2 - home_text.get_width() // 2, WINDOW_HEIGHT // 2 + 70))  
+  
+    pygame.display.flip()  
+  
 level = 0  # Start at level 0  
 while True:  
     # Set up level-specific configurations  
-    ROWS = COLS = maze_sizes[level]  
+    ROWS = maze_sizes[level]  
+    COLS = maze_sizes[level]  
     CELL_SIZE = min(WINDOW_WIDTH // COLS, (WINDOW_HEIGHT - UI_HEIGHT) // ROWS)  
     MAZE_WIDTH = CELL_SIZE * COLS  
     MAZE_HEIGHT = CELL_SIZE * ROWS  
   
     maze = generate_maze(COLS, ROWS)  
+    goal_pos = place_goal(maze, COLS, ROWS)  
     player = Player(1, 1)  
-    goal_pos = (ROWS - 1, COLS - 1)  
   
     enemies = []  
     for _ in range(enemies_count[level]):  
@@ -282,9 +324,11 @@ while True:
     game_active = False  
     show_instructions = False  
     show_abilities = False  
+    show_levels_menu = False  
+    level_complete = False  
   
     while True:  
-        if not game_active and not show_instructions and not show_abilities:  
+        if not game_active and not show_instructions and not show_abilities and not show_levels_menu and not level_complete:  
             start_screen()  
             for event in pygame.event.get():  
                 if event.type == pygame.QUIT:  
@@ -298,6 +342,8 @@ while True:
                 show_instructions = True  
             elif keys_pressed[pygame.K_a]:  
                 show_abilities = True  
+            elif keys_pressed[pygame.K_l]:  
+                show_levels_menu = True  
             elif keys_pressed[pygame.K_q]:  
                 pygame.quit()  
                 sys.exit()  
@@ -323,6 +369,37 @@ while True:
             keys_pressed = pygame.key.get_pressed()  
             if keys_pressed[pygame.K_b]:  
                 show_abilities = False  
+  
+        elif show_levels_menu:  
+            levels_menu()  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
+  
+            keys_pressed = pygame.key.get_pressed()  
+            if keys_pressed[pygame.K_b]:  
+                show_levels_menu = False  
+            for i in range(5):  
+                if keys_pressed[pygame.K_1 + i]:  
+                    level = i  
+                    game_active = True  
+                    show_levels_menu = False  
+                    break  
+  
+        elif level_complete:  
+            level_transition_menu()  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
+  
+            keys_pressed = pygame.key.get_pressed()  
+            if keys_pressed[pygame.K_n]:  
+                level_complete = False  
+                game_active = True  
+            elif keys_pressed[pygame.K_h]:  
+                level_complete = False  
   
         else:  
             for event in pygame.event.get():  
@@ -355,6 +432,8 @@ while True:
                 if level >= len(maze_sizes):  # Check if there are more levels  
                     end_game_screen("Congratulations! You've completed all levels!", player.score)  
                     level = 0  # Reset the game  
+                else:  
+                    level_complete = True  
                 game_active = False  
                 break  
   
