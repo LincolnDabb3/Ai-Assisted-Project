@@ -56,27 +56,30 @@ class Player:
         self.active_ability = None  
         self.ability_timer = 0  
         self.max_abilities = 1  # Initial ability slot  
+        self.score = 0  # Initialize the score  
   
     def draw(self):  
         offset = (CELL_SIZE - self.size) / 2  
         pygame.draw.rect(screen, GREEN, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + offset, self.size, self.size))  
         pygame.draw.rect(screen, RED, (10, WINDOW_SIZE - 30, self.health * 2, 20))  
-        self.draw_keys_and_abilities()  
+        self.draw_keys_abilities_score()  
   
-    def draw_keys_and_abilities(self):  
+    def draw_keys_abilities_score(self):  
         font = pygame.font.SysFont(None, 25)  
-        text = font.render(f"Keys: {self.keys_collected}/3", True, GOLD)  
-        screen.blit(text, (10, 10))  
+        keys_text = font.render(f"Keys: {self.keys_collected}/3", True, GOLD)  
+        screen.blit(keys_text, (10, 10))  
           
         abilities_text = ", ".join(self.abilities) if self.abilities else "None"  
         ability_text = font.render(f"Abilities: {abilities_text}", True, PURPLE)  
         screen.blit(ability_text, (10, 40))  
   
+        score_text = font.render(f"Score: {self.score}", True, WHITE)  
+        screen.blit(score_text, (10, 70))  
+  
     def move(self, dx, dy):  
         speed = 2 if self.active_ability == "Speed" else 1  
         new_x = self.x + dx * speed  
         new_y = self.y + dy * speed  
-        # Ensure the new position is within the maze bounds  
         if 0 <= new_x < ROWS and maze[new_x][self.y] == 0:  
             self.x = new_x  
         if 0 <= new_y < COLS and maze[self.x][new_y] == 0:  
@@ -89,19 +92,20 @@ class Player:
                 enemy.health -= damage  
                 if enemy.health <= 0:  
                     enemies.remove(enemy)  
+                    self.score += 50  # Increase score for defeating an enemy  
   
     def collect_key(self, keys):  
         for key in keys[:]:  
             if (self.x, self.y) == key:  
                 keys.remove(key)  
                 self.keys_collected += 1  
+                self.score += 100  # Increase score for collecting a key  
   
     def collect_ability(self, abilities):  
         for ability in abilities[:]:  
             if (self.x, self.y) == ability:  
                 abilities.remove(ability)  
                 new_ability = random.choice(ABILITY_TYPES)  
-                # Check for "Extra Slot" ability and apply its effect  
                 if new_ability == "Extra Slot":  
                     self.max_abilities += 1  
                 elif len(self.abilities) < self.max_abilities:  
@@ -179,12 +183,15 @@ def draw_abilities(abilities):
 def check_goal_reached(player, goal):  
     return player.x == goal[0] and player.y == goal[1] and player.keys_collected == 3  
   
-def end_game_screen(message):  
+def end_game_screen(message, score):  
     screen.fill(BLACK)  
     font = pygame.font.SysFont(None, 55)  
     text = font.render(message, True, WHITE)  
-    text_rect = text.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2))  
-    screen.blit(text, text_rect)  
+    screen.blit(text, (WINDOW_SIZE // 2 - text.get_width() // 2, WINDOW_SIZE // 2 - 50))  
+      
+    score_text = font.render(f"Final Score: {score}", True, WHITE)  
+    screen.blit(score_text, (WINDOW_SIZE // 2 - score_text.get_width() // 2, WINDOW_SIZE // 2 + 10))  
+      
     pygame.display.flip()  
     pygame.time.wait(2000)  
   
@@ -330,11 +337,11 @@ while True:
             enemy.attack(player)  
   
         if check_goal_reached(player, goal_pos):  
-            end_game_screen("You Win!")  
+            end_game_screen("You Win!", player.score)  
             game_active = False  
   
         if player.health <= 0:  
-            end_game_screen("Game Over!")  
+            end_game_screen("Game Over!", player.score)  
             game_active = False  
   
         screen.fill(BLACK)  
