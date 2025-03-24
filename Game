@@ -7,10 +7,8 @@ from time import time
 pygame.init()  
   
 # Screen settings  
-WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600  
-ROWS, COLS = 30, 40  # Adjusted for a better fit  
-CELL_SIZE = WINDOW_WIDTH // COLS  
-UI_HEIGHT = 100  
+WINDOW_WIDTH, WINDOW_HEIGHT = 850, 700  
+UI_HEIGHT = 50  
   
 # Colors  
 WHITE = (255, 255, 255)  
@@ -25,6 +23,11 @@ PURPLE = (160, 32, 240)
   
 # Abilities  
 ABILITY_TYPES = ["Power", "Speed", "Shield", "Extra Slot"]  
+  
+# Level configurations  
+maze_sizes = [11, 13, 15, 17, 19]  # Maze sizes for each level  
+enemies_count = [3, 4, 5, 6, 7]  # Number of enemies for each level  
+keys_required = [1, 2, 3, 4, 5]  # Keys required to unlock the goal for each level  
   
 def generate_maze(width, height):  
     maze = [[1] * width for _ in range(height)]  
@@ -62,28 +65,31 @@ class Player:
     def draw(self):  
         offset = (CELL_SIZE - self.size) / 2  
         pygame.draw.rect(screen, GREEN, (self.y * CELL_SIZE + offset, self.x * CELL_SIZE + UI_HEIGHT + offset, self.size, self.size))  
-        pygame.draw.rect(screen, RED, (10, WINDOW_HEIGHT - 30, self.health * 2, 20))  
   
     def draw_ui(self):  
         font = pygame.font.SysFont(None, 25)  
-        keys_text = font.render(f"Keys: {self.keys_collected}/3", True, GOLD)  
+        keys_text = font.render(f"Keys: {self.keys_collected}/{keys_required[level]}", True, GOLD)  
         screen.blit(keys_text, (10, 10))  
           
         abilities_text = ", ".join(self.abilities) if self.abilities else "None"  
         ability_text = font.render(f"Abilities: {abilities_text}", True, PURPLE)  
-        screen.blit(ability_text, (10, 40))  
+        screen.blit(ability_text, (10, 30))  
   
         score_text = font.render(f"Score: {self.score}", True, WHITE)  
-        screen.blit(score_text, (10, 70))  
+        screen.blit(score_text, (10, 50))  
+  
+        health_text = font.render("HEALTH", True, WHITE)  
+        screen.blit(health_text, (WINDOW_WIDTH - 250, 10))  
+        pygame.draw.rect(screen, RED, (WINDOW_WIDTH - 150, 10, self.health, 20))  
   
     def move(self, dx, dy):  
-        speed = 2 if self.active_ability == "Speed" else 1  
-        new_x = self.x + dx * speed  
-        new_y = self.y + dy * speed  
-        if 0 <= new_x < ROWS and maze[new_x][self.y] == 0:  
-            self.x = new_x  
-        if 0 <= new_y < COLS and maze[self.x][new_y] == 0:  
-            self.y = new_y  
+        for _ in range(1 if self.active_ability != "Speed" else 2):  
+            new_x = self.x + dx  
+            new_y = self.y + dy  
+            if 0 <= new_x < ROWS and maze[new_x][self.y] == 0:  
+                self.x = new_x  
+            if 0 <= new_y < COLS and maze[self.x][new_y] == 0:  
+                self.y = new_y  
   
     def attack(self, enemies):  
         damage = 40 if self.active_ability == "Power" else 20  
@@ -119,6 +125,7 @@ class Player:
     def update_ability(self):  
         if self.active_ability and time() > self.ability_timer:  
             self.active_ability = None  
+            self.abilities.remove(self.active_ability)  # Remove expired ability  
   
 class Enemy:  
     def __init__(self, x, y, color, attack_rate):  
@@ -164,10 +171,10 @@ def draw_maze():
     for row in range(ROWS):  
         for col in range(COLS):  
             color = WHITE if maze[row][col] == 1 else BLACK  
-            pygame.draw.rect(screen, color, (col * CELL_SIZE, row * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
+            pygame.draw.rect(screen, color, (col * CELL_SIZE, row * CELL_SIZE + UI_HEIGHT, CELL_SIZE - 1, CELL_SIZE - 1))  
   
 def draw_goal(player):  
-    if player.keys_collected < 3:  
+    if player.keys_collected < keys_required[level]:  
         pygame.draw.rect(screen, GRAY, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
     else:  
         pygame.draw.rect(screen, RED, (goal_pos[1] * CELL_SIZE, goal_pos[0] * CELL_SIZE + UI_HEIGHT, CELL_SIZE, CELL_SIZE))  
@@ -181,7 +188,7 @@ def draw_abilities(abilities):
         pygame.draw.rect(screen, PURPLE, (ability[1] * CELL_SIZE + CELL_SIZE * 0.25, ability[0] * CELL_SIZE + CELL_SIZE * 0.25 + UI_HEIGHT, CELL_SIZE * 0.5, CELL_SIZE * 0.5))  
   
 def check_goal_reached(player, goal):  
-    return player.x == goal[0] and player.y == goal[1] and player.keys_collected == 3  
+    return player.x == goal[0] and player.y == goal[1] and player.keys_collected == keys_required[level]  
   
 def end_game_screen(message, score):  
     screen.fill(BLACK)  
@@ -223,7 +230,7 @@ def instructions_screen():
         "Instructions:",  
         "Use arrow keys to move.",  
         "Press SPACE to attack.",  
-        "Collect 3 keys to unlock the goal.",  
+        "Collect keys to unlock the goal.",  
         "Avoid enemies or defeat them.",  
         "Collect abilities for power-ups.",  
         "Press B to go back."  
@@ -249,109 +256,122 @@ def abilities_screen():
         screen.blit(text, (WINDOW_WIDTH // 2 - text.get_width() // 2, WINDOW_HEIGHT // 2 - 100 + i * 40))  
     pygame.display.flip()  
   
-maze = generate_maze(COLS, ROWS)  
-player = Player(1, 1)  
-goal_pos = (ROWS - 2, COLS - 2)  
-  
-num_enemies = random.randint(3, 6)  
-enemies = []  
-for _ in range(num_enemies):  
-    color = random.choice([BLUE, YELLOW, RED])  
-    attack_rate = random.choice([1.0, 1.5, 2.0])  
-    enemies.append(Enemy(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2)), color, attack_rate))  
-  
-keys = [(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2))) for _ in range(3)]  
-abilities = [(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2))) for _ in range(2)]  
-  
-clock = pygame.time.Clock()  
-  
-game_active = False  
-show_instructions = False  
-show_abilities = False  
-  
+level = 0  # Start at level 0  
 while True:  
-    if not game_active and not show_instructions and not show_abilities:  
-        start_screen()  
-        for event in pygame.event.get():  
-            if event.type == pygame.QUIT:  
+    # Set up level-specific configurations  
+    ROWS = COLS = maze_sizes[level]  
+    CELL_SIZE = min(WINDOW_WIDTH // COLS, (WINDOW_HEIGHT - UI_HEIGHT) // ROWS)  
+    MAZE_WIDTH = CELL_SIZE * COLS  
+    MAZE_HEIGHT = CELL_SIZE * ROWS  
+  
+    maze = generate_maze(COLS, ROWS)  
+    player = Player(1, 1)  
+    goal_pos = (ROWS - 1, COLS - 1)  
+  
+    enemies = []  
+    for _ in range(enemies_count[level]):  
+        color = random.choice([BLUE, YELLOW, RED])  
+        attack_rate = random.choice([1.0, 1.5, 2.0])  
+        enemies.append(Enemy(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2)), color, attack_rate))  
+  
+    keys = [(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2))) for _ in range(keys_required[level])]  
+    abilities = [(random.choice(range(1, ROWS, 2)), random.choice(range(1, COLS, 2))) for _ in range(2)]  
+  
+    clock = pygame.time.Clock()  
+  
+    game_active = False  
+    show_instructions = False  
+    show_abilities = False  
+  
+    while True:  
+        if not game_active and not show_instructions and not show_abilities:  
+            start_screen()  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
+  
+            keys_pressed = pygame.key.get_pressed()  
+            if keys_pressed[pygame.K_s]:  
+                game_active = True  
+            elif keys_pressed[pygame.K_i]:  
+                show_instructions = True  
+            elif keys_pressed[pygame.K_a]:  
+                show_abilities = True  
+            elif keys_pressed[pygame.K_q]:  
                 pygame.quit()  
                 sys.exit()  
   
-        keys_pressed = pygame.key.get_pressed()  
-        if keys_pressed[pygame.K_s]:  
-            game_active = True  
-        elif keys_pressed[pygame.K_i]:  
-            show_instructions = True  
-        elif keys_pressed[pygame.K_a]:  
-            show_abilities = True  
-        elif keys_pressed[pygame.K_q]:  
-            pygame.quit()  
-            sys.exit()  
+        elif show_instructions:  
+            instructions_screen()  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
   
-    elif show_instructions:  
-        instructions_screen()  
-        for event in pygame.event.get():  
-            if event.type == pygame.QUIT:  
-                pygame.quit()  
-                sys.exit()  
+            keys_pressed = pygame.key.get_pressed()  
+            if keys_pressed[pygame.K_b]:  
+                show_instructions = False  
   
-        keys_pressed = pygame.key.get_pressed()  
-        if keys_pressed[pygame.K_b]:  
-            show_instructions = False  
+        elif show_abilities:  
+            abilities_screen()  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
   
-    elif show_abilities:  
-        abilities_screen()  
-        for event in pygame.event.get():  
-            if event.type == pygame.QUIT:  
-                pygame.quit()  
-                sys.exit()  
+            keys_pressed = pygame.key.get_pressed()  
+            if keys_pressed[pygame.K_b]:  
+                show_abilities = False  
   
-        keys_pressed = pygame.key.get_pressed()  
-        if keys_pressed[pygame.K_b]:  
-            show_abilities = False  
+        else:  
+            for event in pygame.event.get():  
+                if event.type == pygame.QUIT:  
+                    pygame.quit()  
+                    sys.exit()  
   
-    else:  
-        for event in pygame.event.get():  
-            if event.type == pygame.QUIT:  
-                pygame.quit()  
-                sys.exit()  
+            key_presses = pygame.key.get_pressed()  
+            if key_presses[pygame.K_UP]:  
+                player.move(-1, 0)  
+            if key_presses[pygame.K_DOWN]:  
+                player.move(1, 0)  
+            if key_presses[pygame.K_LEFT]:  
+                player.move(0, -1)  
+            if key_presses[pygame.K_RIGHT]:  
+                player.move(0, 1)  
+            if key_presses[pygame.K_SPACE]:  
+                player.attack(enemies)  
   
-        key_presses = pygame.key.get_pressed()  
-        if key_presses[pygame.K_UP]:  
-            player.move(-1, 0)  
-        if key_presses[pygame.K_DOWN]:  
-            player.move(1, 0)  
-        if key_presses[pygame.K_LEFT]:  
-            player.move(0, -1)  
-        if key_presses[pygame.K_RIGHT]:  
-            player.move(0, 1)  
-        if key_presses[pygame.K_SPACE]:  
-            player.attack(enemies)  
+            player.collect_key(keys)  
+            player.collect_ability(abilities)  
+            player.update_ability()  
   
-        player.collect_key(keys)  
-        player.collect_ability(abilities)  
-        player.update_ability()  
+            for enemy in enemies:  
+                enemy.move_towards_player(player)  
+                enemy.attack(player)  
   
-        for enemy in enemies:  
-            enemy.move_towards_player(player)  
-            enemy.attack(player)  
+            if check_goal_reached(player, goal_pos):  
+                level += 1  # Move to the next level  
+                if level >= len(maze_sizes):  # Check if there are more levels  
+                    end_game_screen("Congratulations! You've completed all levels!", player.score)  
+                    level = 0  # Reset the game  
+                game_active = False  
+                break  
   
-        if check_goal_reached(player, goal_pos):  
-            end_game_screen("You Win!", player.score)  
-            game_active = False  
+            if player.health <= 0:  
+                end_game_screen("Game Over!", player.score)  
+                level = 0  # Reset the game  
+                game_active = False  
+                break  
   
-        if player.health <= 0:  
-            end_game_screen("Game Over!", player.score)  
-            game_active = False  
-  
-        screen.fill(BLACK)  
-        draw_maze()  
-        draw_goal(player)  
-        draw_keys(keys)  
-        draw_abilities(abilities)  
-        player.draw()  
-        player.draw_ui()  
-        for enemy in enemies:  
-            enemy.draw()  
-        pygame.display.flip()  
-        clock.tick(10)  
+            screen.fill(BLACK)  
+            draw_maze()  
+            draw_goal(player)  
+            draw_keys(keys)  
+            draw_abilities(abilities)  
+            player.draw()  
+            player.draw_ui()  
+            for enemy in enemies:  
+                enemy.draw()  
+            pygame.display.flip()  
+            clock.tick(10)  
