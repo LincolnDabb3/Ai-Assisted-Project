@@ -428,6 +428,8 @@ while True:
             for enemy in enemies:  
                 enemy.move_towards_player(player)  
                 enemy.attack(player)  
+                enemy.attack(player)  
+                enemy.attack(player)  
   
             if check_goal_reached(player, goal_pos):  
                 level += 1  # Move to the next level  
